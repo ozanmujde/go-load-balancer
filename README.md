@@ -21,9 +21,9 @@ This is a simple TCP load balancer implemented in Go, supporting multiple load b
 2. Changing the Load Balancing Strategy
 You can change the load balancing strategy by calling the SetLoadBalancingStrategy function in main.go. The available strategies are:
 
-    round_robin
-    random
-    least_connections
+    round_robin,
+    random,
+    least_connections,
     ip_hash
 Example:
    ```go
