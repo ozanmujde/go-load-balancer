@@ -2,12 +2,13 @@ package main
 
 import (
 	"io"
+	"load_balancer/balancer"
 	"log"
 	"net"
+	"sync"
 )
 
 var (
-	// DefaultHTTPGetAddress Default Address
 	listenAddr = "localhost:8080"
 
 	server = []string{
@@ -15,7 +16,9 @@ var (
 		"localhost:5051",
 		"localhost:5052",
 	}
-	count int
+	serverMetrics = make(map[string]int)
+
+	mu sync.Mutex
 )
 
 func main() {
@@ -29,11 +32,18 @@ func main() {
 		if err != nil {
 			log.Printf("WARNING: cannot accept connection err: %s", err)
 		}
-		backendServer := chooseServer()
+		backendServer := balancer.ChooseServer(server, serverMetrics, conn.RemoteAddr().String(), &mu)
+		balancer.SetLoadBalancingStrategy("least_connections")
 		go func() {
 			err := proxy(conn, backendServer)
 			if err != nil {
 				log.Printf("Failed to connect proxy server %s", err)
+			}
+			if balancer.GetLoadBalancingStrategy() == "least_connections" {
+				err = balancer.DecreaseConnections(backendServer, serverMetrics, &mu)
+			}
+			if err != nil {
+				log.Println(err)
 			}
 		}()
 	}
@@ -49,10 +59,4 @@ func proxy(c net.Conn, server string) error {
 	go io.Copy(c, conn)
 
 	return nil
-}
-
-func chooseServer() string {
-	s := server[count%len(server)]
-	count++
-	return s
 }
